@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "ts-node seed.ts",
-    "migrate": "ts-node src/utils/migrate.ts"
+    "migrate": "ts-node -O '{\"skipLibCheck\":true}' src/utils/migrate.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
