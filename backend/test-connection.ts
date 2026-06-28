@@ -1,48 +1,58 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { Pool } from 'pg';
 
-const PROJECT = 'jnazyxwmacujvetnaagy';
-const PASSWORD = '8Y3w9jcwPXqfOXk0';
+const DATABASE_URL = process.env.DATABASE_URL;
 
-// Pre-resolved IPs for the pooler regions
-const POOLER_IP = '3.108.251.216'; // ap-south-1
-const POOLER_HOST = `aws-0-ap-south-1.pooler.supabase.com`;
+if (!DATABASE_URL) {
+  console.error('❌ DATABASE_URL is not set. Add it to your .env file.');
+  process.exit(1);
+}
 
-const configs: any[] = [
-  // IPv6 direct (Google DoH resolved)
-  {
-    label: 'Direct IPv6 (postgres user)',
-    host: '2406:da14:25a:5801:ba33:64cd:60d4:f650', port: 5432,
-    user: 'postgres', password: PASSWORD, database: 'postgres',
-    ssl: { rejectUnauthorized: false },
-  },
-  {
-    label: 'Direct IPv6 (postgres.PROJECT user)',
-    host: '2406:da14:25a:5801:ba33:64cd:60d4:f650', port: 5432,
-    user: `postgres.${PROJECT}`, password: PASSWORD, database: 'postgres',
-    ssl: { rejectUnauthorized: false },
-  },
-  // Try plain 'postgres' user on pooler (older Supabase projects)
-  {
-    label: 'Pooler with user=postgres (old format)',
-    host: '3.108.251.216', port: 5432,
-    user: 'postgres', password: PASSWORD, database: 'postgres',
-    ssl: { rejectUnauthorized: false, servername: POOLER_HOST },
-  },
-  // Try with project.user format
-  {
-    label: 'Pooler user=postgres.PROJECT (new format)',
-    host: '3.108.251.216', port: 5432,
-    user: `postgres.${PROJECT}`, password: PASSWORD, database: 'postgres',
-    ssl: { rejectUnauthorized: false, servername: POOLER_HOST },
-  },
-  // Direct connection via hostname (may fail if local DNS is broken)
-  {
-    label: 'Direct host (hostname, plain postgres user)',
-    host: `db.${PROJECT}.supabase.co`, port: 5432,
-    user: 'postgres', password: PASSWORD, database: 'postgres',
-    ssl: { rejectUnauthorized: false },
-  },
-];
+// Parse DATABASE_URL: postgresql://user:password@host:port/database
+const url = new URL(DATABASE_URL);
+const DB_USER = decodeURIComponent(url.username);
+const DB_PASSWORD = decodeURIComponent(url.password);
+const DB_HOST = url.hostname;
+const DB_PORT = parseInt(url.port || '5432', 10);
+const DB_NAME = url.pathname.replace(/^\//, '') || 'postgres';
+
+// Derive Supabase project ID from hostname (pattern: db.<project>.supabase.co)
+const projectMatch = DB_HOST.match(/^db\.(.+)\.supabase\.co$/);
+const PROJECT = projectMatch ? projectMatch[1] : null;
+
+const configs: any[] = [];
+
+if (PROJECT) {
+  // Supabase-specific connection strategies
+  const POOLER_HOST = `aws-0-ap-south-1.pooler.supabase.com`;
+
+  configs.push(
+    // Direct connection via hostname
+    {
+      label: 'Direct host (postgres user)',
+      host: DB_HOST, port: DB_PORT,
+      user: DB_USER, password: DB_PASSWORD, database: DB_NAME,
+      ssl: { rejectUnauthorized: false },
+    },
+    // Pooler with project-scoped user
+    {
+      label: 'Pooler (postgres.PROJECT user)',
+      host: POOLER_HOST, port: 5432,
+      user: `postgres.${PROJECT}`, password: DB_PASSWORD, database: DB_NAME,
+      ssl: { rejectUnauthorized: false, servername: POOLER_HOST },
+    },
+  );
+} else {
+  // Generic Postgres connection
+  configs.push({
+    label: 'Direct connection',
+    host: DB_HOST, port: DB_PORT,
+    user: DB_USER, password: DB_PASSWORD, database: DB_NAME,
+    ssl: DB_HOST !== 'localhost' ? { rejectUnauthorized: false } : undefined,
+  });
+}
 
 async function main() {
   for (const { label, ...cfg } of configs) {
@@ -61,7 +71,7 @@ async function main() {
       await pool.end().catch(() => {});
     }
   }
-  console.log('\n❌ All failed. The project may be paused — check supabase.com/dashboard');
+  console.log('\n❌ All failed. Check your DATABASE_URL and that the database is running.');
   process.exit(1);
 }
 

@@ -5,6 +5,7 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import DashboardPage from '../pages/DashboardPage';
 import OrganizationsPage from '../pages/OrganizationsPage';
 import OrgAdminsPage from '../pages/OrgAdminsPage';
+import OrgAdminDetailPage from '../pages/OrgAdminDetailPage';
 import ProtectedRoute from './ProtectedRoute';
 
 const AppRoutes: React.FC = () => {
@@ -41,6 +42,7 @@ const AppRoutes: React.FC = () => {
         }
       >
         <Route index element={<OrgAdminsPage />} />
+        <Route path=":id" element={<OrgAdminDetailPage />} />
       </Route>
     </Routes>
   );

@@ -6,8 +6,24 @@ import { Client } from 'pg';
 import fs from 'fs';
 import path from 'path';
 
-const PROJECT = 'jnazyxwmacujvetnaagy';
-const PASSWORD = '8Y3w9jcwPXqfOXk0';
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
+  console.error('❌ DATABASE_URL is not set. Add it to your .env file.');
+  process.exit(1);
+}
+
+// Parse DATABASE_URL: postgresql://user:password@host:port/database
+const url = new URL(DATABASE_URL);
+const DB_USER = decodeURIComponent(url.username);
+const DB_PASSWORD = decodeURIComponent(url.password);
+const DB_HOST = url.hostname;
+const DB_PORT = parseInt(url.port || '5432', 10);
+const DB_NAME = url.pathname.replace(/^\//, '') || 'postgres';
+
+// Derive Supabase project ID from hostname (pattern: db.<project>.supabase.co)
+const projectMatch = DB_HOST.match(/^db\.(.+)\.supabase\.co$/);
+const PROJECT = projectMatch ? projectMatch[1] : null;
 
 // Custom socket that redirects TCP to a pre-resolved IP (bypasses Node DNS)
 function makeRedirectedSocket(realIp: string, realPort: number): net.Socket {
@@ -41,75 +57,49 @@ async function migrate() {
 
   let client: Client | null = null;
 
-  // Strategy 1: IPv6 direct connection (resolved via DoH, bypass local DNS)
-  const IPV6 = '2406:da14:25a:5801:ba33:64cd:60d4:f650';
-  const DIRECT = 'db.jnazyxwmacujvetnaagy.supabase.co';
-
-  client = await tryConnect('Direct IPv6 (postgres user, port 5432)', {
-    host: IPV6,
-    port: 5432,
-    user: 'postgres',
-    password: PASSWORD,
-    database: 'postgres',
-    ssl: { rejectUnauthorized: false },
+  // Strategy 1: Direct connection via DATABASE_URL hostname
+  client = await tryConnect('Direct connection (from DATABASE_URL)', {
+    host: DB_HOST,
+    port: DB_PORT,
+    user: DB_USER,
+    password: DB_PASSWORD,
+    database: DB_NAME,
+    ssl: DB_HOST !== 'localhost' ? { rejectUnauthorized: false } : undefined,
   });
 
-  if (!client) {
-    client = await tryConnect('Direct IPv6 (postgres.PROJECT user)', {
-      host: IPV6,
-      port: 5432,
-      user: `postgres.${PROJECT}`,
-      password: PASSWORD,
-      database: 'postgres',
-      ssl: { rejectUnauthorized: false },
-    });
-  }
-
-  if (!client) {
-    client = await tryConnect('Direct IPv6 via hostname (TLS SNI)', {
-      host: DIRECT,
-      port: 5432,
-      user: 'postgres',
-      password: PASSWORD,
-      database: 'postgres',
-      ssl: { rejectUnauthorized: false },
-      stream: makeRedirectedSocket(IPV6, 5432),
-    });
-  }
-
-  if (!client) {
-    // Strategy 2: Session Pooler via pre-resolved IP + SNI
+  // Strategy 2: Supabase-specific fallback strategies
+  if (!client && PROJECT) {
     const POOLER_HOST = 'aws-0-ap-south-1.pooler.supabase.com';
-    const POOLER_IP   = '3.108.251.216';
 
-    client = await tryConnect('Session Pooler (pre-resolved IP, custom socket)', {
+    // Try with project-scoped user on pooler
+    client = await tryConnect('Session Pooler (project-scoped user)', {
       host: POOLER_HOST,
       port: 5432,
       user: `postgres.${PROJECT}`,
-      password: PASSWORD,
-      database: 'postgres',
+      password: DB_PASSWORD,
+      database: DB_NAME,
       ssl: { rejectUnauthorized: false },
-      stream: makeRedirectedSocket(POOLER_IP, 5432),
     });
-  }
 
-  if (!client) {
-    client = await tryConnect('Transaction Pooler port 6543 (pre-resolved IP)', {
-      host: 'aws-0-ap-south-1.pooler.supabase.com',
-      port: 6543,
-      user: `postgres.${PROJECT}`,
-      password: PASSWORD,
-      database: 'postgres',
-      ssl: { rejectUnauthorized: false },
-      stream: makeRedirectedSocket('3.108.251.216', 6543),
-    });
+    if (!client) {
+      client = await tryConnect('Transaction Pooler port 6543', {
+        host: POOLER_HOST,
+        port: 6543,
+        user: `postgres.${PROJECT}`,
+        password: DB_PASSWORD,
+        database: DB_NAME,
+        ssl: { rejectUnauthorized: false },
+      });
+    }
   }
 
   if (!client) {
     console.error('\n❌ All connection strategies failed.');
-    console.error('\n📋 MANUAL OPTION: Run the SQL in the Supabase SQL Editor:');
-    console.error('   https://supabase.com/dashboard/project/jnazyxwmacujvetnaagy/sql/new');
-    console.error('   Paste contents of: migrations/001_init.sql\n');
+    if (PROJECT) {
+      console.error('\n📋 MANUAL OPTION: Run the SQL in the Supabase SQL Editor:');
+      console.error(`   https://supabase.com/dashboard/project/${PROJECT}/sql/new`);
+      console.error('   Paste contents of: migrations/001_init.sql\n');
+    }
     process.exit(1);
   }
 

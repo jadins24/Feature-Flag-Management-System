@@ -38,3 +38,14 @@ export async function getUserById(id: string): Promise<User | null> {
   if (error) throw error;
   return (data as User) || null;
 }
+
+export async function getUsersByOrgId(orgId: string): Promise<User[]> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('org_id', orgId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data as User[]) || [];
+}

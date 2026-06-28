@@ -4,6 +4,7 @@ import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
 import DashboardLayout from '../layouts/DashboardLayout';
 import DashboardPage from '../pages/DashboardPage';
+import UsersPage from '../pages/UsersPage';
 import ProtectedRoute from './ProtectedRoute';
 
 const AppRoutes: React.FC = () => {
@@ -21,6 +22,16 @@ const AppRoutes: React.FC = () => {
         }
       >
         <Route index element={<DashboardPage />} />
+      </Route>
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<UsersPage />} />
       </Route>
     </Routes>
   );

@@ -1,18 +1,16 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { Flag, LogOut } from 'lucide-react';
+import { Flag, LogOut, Users } from 'lucide-react';
 import type { AppDispatch } from '../redux/store';
 import { logout } from '../redux/slices/authSlice';
 
 const Sidebar: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const navigate = useNavigate();
   const location = useLocation();
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/login');
   };
 
   const isActive = (path: string) => location.pathname === path;
@@ -27,12 +25,18 @@ const Sidebar: React.FC = () => {
         <span className="sidebar-role">Org Admin</span>
       </div>
       <nav className="sidebar-nav">
-        <a href="/dashboard" className={`sidebar-link ${isActive('/dashboard') ? 'active' : ''}`}>
+        <Link to="/dashboard" className={`sidebar-link ${isActive('/dashboard') ? 'active' : ''}`}>
           <span className="sidebar-link-icon">
             <Flag size={16} />
           </span>
           Feature Flags
-        </a>
+        </Link>
+        <Link to="/users" className={`sidebar-link ${isActive('/users') ? 'active' : ''}`}>
+          <span className="sidebar-link-icon">
+            <Users size={16} />
+          </span>
+          Users
+        </Link>
       </nav>
       <div className="sidebar-footer">
         <button className="btn-logout" onClick={handleLogout}>

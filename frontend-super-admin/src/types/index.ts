@@ -32,6 +32,24 @@ export interface OrgsState {
   error: string | null;
 }
 
+/** Org Admin with organization details */
+export interface OrgAdmin {
+  id: string;
+  email: string;
+  role: string;
+  org_id: string;
+  created_at: string;
+  org_name: string;
+}
+
+/** Org Admins state shape for Redux */
+export interface OrgAdminsState {
+  admins: OrgAdmin[];
+  admin: OrgAdmin | null;
+  loading: boolean;
+  error: string | null;
+}
+
 /** Login request body */
 export interface LoginRequest {
   email: string;

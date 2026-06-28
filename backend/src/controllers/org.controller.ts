@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createOrg, getAllOrgs, updateOrg as updateOrgModel } from '../models/organization.model';
+import { createOrg, getAllOrgs, updateOrg as updateOrgModel, getOrgAdmins, getOrgAdminById } from '../models/organization.model';
 
 /**
  * POST /orgs
@@ -54,6 +54,39 @@ export async function listOrganizations(_req: Request, res: Response): Promise<v
     res.status(200).json(orgs);
   } catch (err) {
     console.error('List orgs error:', err);
+    res.status(500).json({ error: 'Internal server error.', statusCode: 500 });
+  }
+}
+
+/**
+ * GET /orgs/admins
+ * List all org admins with their organization details. Super admin only.
+ */
+export async function listOrgAdmins(_req: Request, res: Response): Promise<void> {
+  try {
+    const admins = await getOrgAdmins();
+    res.status(200).json(admins);
+  } catch (err) {
+    console.error('List org admins error:', err);
+    res.status(500).json({ error: 'Internal server error.', statusCode: 500 });
+  }
+}
+
+/**
+ * GET /orgs/admins/:id
+ * Get a single org admin with organization details. Super admin only.
+ */
+export async function getOrgAdmin(_req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = _req.params;
+    const admin = await getOrgAdminById(id);
+    if (!admin) {
+      res.status(404).json({ error: 'Org admin not found.', statusCode: 404 });
+      return;
+    }
+    res.status(200).json(admin);
+  } catch (err) {
+    console.error('Get org admin error:', err);
     res.status(500).json({ error: 'Internal server error.', statusCode: 500 });
   }
 }

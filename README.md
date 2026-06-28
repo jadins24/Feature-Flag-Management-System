@@ -45,13 +45,12 @@ From the `backend` directory, run the initialization and seed scripts to create 
 
 ```bash
 cd backend
-npm run db:init
-npm run db:seed
+npm run migrate
+npm run seed
 ```
 
 **Seed Credentials:**
-- **Email:** super@admin.com
-- **Password:** superpassword123
+The super admin account is created using the `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` values from your `backend/.env` file. See `.env.example` for the template.
 
 ### 4. Running the Applications
 Start each application in its own terminal window:
@@ -85,7 +84,7 @@ npm run dev
 ## 🧪 How to Test the System
 
 1. **Super Admin Flow (Port 3002)**
-   - Log in with the seeded credentials (`super@admin.com` / `superpassword123`).
+   - Log in with the seeded credentials (the email/password you configured in `backend/.env`).
    - Create a new Organization (e.g., "Acme Corp").
    - Create an Org Admin for that organization.
 
@@ -96,24 +95,10 @@ npm run dev
 
 3. **End User Flow (Port 3004)**
    - Open the end user app.
-   - Enter the `org_id` (copied from the Super Admin dashboard) and the `feature_key`.
-   - Click "Check" to see if the feature is enabled for that organization.
+   - Select your organization (or set `VITE_DEFAULT_ORG_ID` in `.env` to skip selection).
+   - Enter the `feature_key` and click "Check" to see if the feature is enabled for that organization.
 
 ## 📚 API Documentation
 
 The backend includes Swagger/OpenAPI documentation.
 While the backend is running, visit: `http://localhost:3001/api-docs` to view all endpoints and schemas.
-
-
-<environment_details>
-Current time: 2026-06-27T13:07:39+05:30
-Working directory: F:\Feature Flag Management System
-Workspace root folder: /
-Active file: README.md
-Visible files:
-  README.md
-Open tabs:
-  README.md
-</environment_details>
-"# Feature-Flag-Management-System" 
-"# Feature-Flag-Management-System" 

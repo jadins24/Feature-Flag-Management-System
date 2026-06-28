@@ -1,21 +1,33 @@
 import React, { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
-import type { AppDispatch, RootState } from '../redux/store';
-import { loginUser } from '../redux/slices/authSlice';
+import { LogIn } from 'lucide-react';
+import { loginUser } from '../api/client';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const dispatch = useDispatch<AppDispatch>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { loading, error } = useSelector((state: RootState) => state.auth);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = await dispatch(loginUser({ email, password }));
-    if (loginUser.fulfilled.match(result)) {
-      navigate('/dashboard');
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await loginUser(email, password);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      // Store org_id for flag checking if user has one
+      if (data.user.org_id) {
+        localStorage.setItem('defaultOrgId', data.user.org_id);
+      }
+      navigate('/');
+    } catch (err: any) {
+      setError(err.message || 'Failed to login');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -24,11 +36,12 @@ const LoginPage: React.FC = () => {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-header">
-            <h1>Org Admin Login</h1>
-            <p>Access your organization's feature flags</p>
+            <LogIn size={48} className="auth-logo" />
+            <h1>User Login</h1>
+            <p>Sign in to check your organization's feature flags</p>
           </div>
           {error && <div className="auth-error">{error}</div>}
-          <form onSubmit={handleSubmit} className="auth-form">
+          <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="email">Email</label>
               <input
@@ -60,7 +73,7 @@ const LoginPage: React.FC = () => {
             </button>
           </form>
           <p className="auth-footer">
-            <Link to="/signup" className="auth-link">Create an account</Link>
+            <Link to="/signup" className="auth-link">Don't have an account? Sign Up</Link>
           </p>
         </div>
       </div>

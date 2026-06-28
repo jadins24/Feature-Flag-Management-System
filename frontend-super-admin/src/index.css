@@ -514,6 +514,30 @@ body {
   opacity: 1;
 }
 
+.org-cell,
+.email-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.org-cell {
+  font-weight: 500;
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  padding: 0.25rem;
+}
+
+.btn-icon:hover {
+  opacity: 1;
+}
+
 /* ---- Empty State ---- */
 .empty-state {
   text-align: center;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import apiClient from '../api/client';
+import { UserPlus } from 'lucide-react';
+import { fetchOrgs, registerUser } from '../api/client';
 
 interface Organization {
   id: string;
@@ -17,25 +18,20 @@ const SignupPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchOrgs = async () => {
-      try {
-        const res = await apiClient.get('/orgs');
-        setOrganizations(res.data);
-      } catch (err) {
-        console.error('Failed to load organizations', err);
-      }
-    };
-    fetchOrgs();
+    fetchOrgs()
+      .then((data) => setOrganizations(data))
+      .catch((err) => console.error('Failed to load organizations', err));
   }, []);
 
-  const trimmedOrgName = orgName.trim();
-  const orgExists = trimmedOrgName
-    ? organizations.some((org) => org.name.toLowerCase() === trimmedOrgName.toLowerCase())
+  const trimmedInput = orgName.trim();
+  const matchedOrg = trimmedInput
+    ? organizations.find((org) => org.name.toLowerCase() === trimmedInput.toLowerCase())
     : null;
+  const orgExists = trimmedInput ? !!matchedOrg : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (orgExists === false) {
+    if (!matchedOrg) {
       setError('Organization not found. Please contact your administrator.');
       return;
     }
@@ -43,10 +39,15 @@ const SignupPage: React.FC = () => {
     setError(null);
 
     try {
-      await apiClient.post('/auth/register/org', { email, password, orgName });
-      navigate('/login');
+      const data = await registerUser(email, password, orgName);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      if (data.user.org_id) {
+        localStorage.setItem('defaultOrgId', data.user.org_id);
+      }
+      navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to sign up');
+      setError(err.message || 'Failed to sign up');
     } finally {
       setLoading(false);
     }
@@ -57,11 +58,12 @@ const SignupPage: React.FC = () => {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-header">
-            <h1>Org Admin Sign Up</h1>
-            <p>Register as an admin for an existing organization</p>
+            <UserPlus size={48} className="auth-logo" />
+            <h1>User Sign Up</h1>
+            <p>Create an end user account for your organization</p>
           </div>
           {error && <div className="auth-error">{error}</div>}
-          <form onSubmit={handleSubmit} className="auth-form">
+          <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="orgName">Organization Name</label>
               <input
@@ -74,13 +76,13 @@ const SignupPage: React.FC = () => {
                 required
                 disabled={loading}
               />
-              {trimmedOrgName && orgExists === true && (
-                <div style={{ color: 'var(--success)', fontSize: '0.85rem', marginTop: '0.25rem', fontWeight: '500' }}>
+              {trimmedInput && orgExists === true && (
+                <div style={{ color: '#10b981', fontSize: '0.85rem', marginTop: '0.25rem', fontWeight: '500', textAlign: 'left' }}>
                   ✅ Organization found
                 </div>
               )}
-              {trimmedOrgName && orgExists === false && (
-                <div style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '0.25rem', fontWeight: '500' }}>
+              {trimmedInput && orgExists === false && (
+                <div style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem', fontWeight: '500', textAlign: 'left' }}>
                   ❌ Organization not found. Please contact your administrator.
                 </div>
               )}

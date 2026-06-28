@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, AlertCircle, Building2, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Check, X, AlertCircle, Building2, LogOut, User } from 'lucide-react';
 import { fetchOrgs, checkFlag } from './api/client';
 import './App.css';
 
@@ -13,60 +14,62 @@ interface CheckResponse {
   error?: string;
 }
 
-const DEFAULT_ORG_ID = import.meta.env.VITE_DEFAULT_ORG_ID as string;
-
 const App: React.FC = () => {
   const [orgs, setOrgs] = useState<Organization[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState(DEFAULT_ORG_ID || '');
-  const [showSetup, setShowSetup] = useState(!DEFAULT_ORG_ID);
+  const [selectedOrgId, setSelectedOrgId] = useState('');
   const [featureKey, setFeatureKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CheckResponse | null>(null);
-  const [setupLoading, setSetupLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Check localStorage for saved org (overrides env var if exists)
-    const savedOrgId = localStorage.getItem('defaultOrgId');
-    if (savedOrgId) {
-      setSelectedOrgId(savedOrgId);
-      setShowSetup(false);
-    } else if (DEFAULT_ORG_ID) {
-      setSelectedOrgId(DEFAULT_ORG_ID);
-      setShowSetup(false);
-    } else {
-      setShowSetup(true);
+    const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+
+    if (!token || !storedUser) {
+      navigate('/login');
+      return;
     }
 
-    // Fetch organizations for setup dropdown
+    try {
+      const user = JSON.parse(storedUser);
+      setUserEmail(user.email);
+      if (user.org_id) {
+        setSelectedOrgId(user.org_id);
+      } else {
+        navigate('/login');
+        return;
+      }
+    } catch {
+      navigate('/login');
+      return;
+    }
+
+    // Fetch organizations to get the name of the user's organization
     fetchOrgs()
       .then((data: Organization[]) => setOrgs(data))
       .catch(() => setOrgs([]))
-      .finally(() => setSetupLoading(false));
-  }, []);
+      .finally(() => setPageLoading(false));
+  }, [navigate]);
 
-  const handleSaveOrg = () => {
-    if (selectedOrgId) {
-      localStorage.setItem('defaultOrgId', selectedOrgId);
-      setShowSetup(false);
-    }
-  };
-
-  const handleClearOrg = () => {
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     localStorage.removeItem('defaultOrgId');
-    setSelectedOrgId(DEFAULT_ORG_ID || '');
-    setShowSetup(!DEFAULT_ORG_ID);
+    navigate('/login');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const orgId = selectedOrgId;
-    if (!orgId || !featureKey.trim()) return;
+    if (!selectedOrgId || !featureKey.trim()) return;
 
     setLoading(true);
     setResult(null);
 
     try {
-      const data = await checkFlag(orgId, featureKey.trim());
+      const data = await checkFlag(selectedOrgId, featureKey.trim());
       setResult({ enabled: data.enabled });
     } catch (err: any) {
       setResult({ error: err.message || 'Failed to check flag' });
@@ -75,9 +78,7 @@ const App: React.FC = () => {
     }
   };
 
-  const effectiveOrgId = selectedOrgId || DEFAULT_ORG_ID;
-  
-  if (setupLoading) {
+  if (pageLoading) {
     return (
       <div className="app-container">
         <div className="card">
@@ -87,42 +88,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (showSetup && !effectiveOrgId) {
-    return (
-      <div className="app-container">
-        <div className="card">
-          <header className="header">
-            <div className="logo">
-              <Building2 size={24} />
-              Feature Flag Checker
-            </div>
-            <p>Select your organization to check feature flags</p>
-          </header>
-          
-          <div className="form-group">
-            <label htmlFor="setup-org">Organization</label>
-            <select
-              id="setup-org"
-              value={selectedOrgId}
-              onChange={(e) => setSelectedOrgId(e.target.value)}
-              disabled={orgs.length === 0}
-            >
-              <option value="">-- Select Organization --</option>
-              {orgs.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <button className="btn-submit" onClick={handleSaveOrg} disabled={!selectedOrgId}>
-            Save and Continue
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const currentOrgName = orgs.find((o) => o.id === selectedOrgId)?.name || 'Loading organization...';
 
   return (
     <div className="app-container">
@@ -136,18 +102,29 @@ const App: React.FC = () => {
         </header>
 
         <div className="org-header">
-          <span className="org-name">
-            {orgs.find((o) => o.id === effectiveOrgId)?.name || effectiveOrgId}
-          </span>
-          {!DEFAULT_ORG_ID && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <span className="org-label" style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+              Organization
+            </span>
+            <span className="org-name" style={{ fontWeight: '600', fontSize: '1.1rem' }}>
+              {currentOrgName}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {userEmail && (
+              <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <User size={16} /> {userEmail}
+              </span>
+            )}
             <button 
               className="btn-settings" 
-              onClick={handleClearOrg}
-              title="Change organization"
+              onClick={handleLogout}
+              title="Logout"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', borderRadius: '50%', background: 'var(--bg-input)', border: 'none', cursor: 'pointer' }}
             >
-              <Settings size={16} />
+              <LogOut size={16} />
             </button>
-          )}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="check-form">
